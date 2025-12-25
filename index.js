@@ -1,99 +1,118 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
-const morgan = require('morgan')
+require("dotenv").config();
+const express = require("express");
+const app = express();
+const cors = require("cors");
+const morgan = require("morgan");
+const PhoneNumber = require("./models/phoneNumber");
 
+app.use(cors());
+app.use(express.json());
+morgan.token("body", function (req, res) {
+  return JSON.stringify(req.body);
+});
+app.use(morgan("tiny :body"));
 
-app.use(cors())
-app.use(express.json())
-morgan.token('body', function (req, res) { return JSON.stringify(req.body) })
-app.use(morgan('tiny :body'))
+app.get("/api/persons", (request, response) => {
+  PhoneNumber.find({}).then((returnedPhoneNumbers) => {
+    response.json(returnedPhoneNumbers);
+  });
+});
 
+app.get("/api/persons/:id", (request, response) => {
+  PhoneNumber.findById(request.params.id)
+    .then((foundPerson) => {
+      if (!foundPerson) {
+        return response
+          .status(404)
+          .send({ error: "The id for that person does not exist" });
+      }
 
-let phonebook = [
-    {
-        "id": "1",
-        "name": "Arto Hellas",
-        "number": "040-123456"
-    },
-    {
-        "id": "2",
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523"
-    },
-    {
-        "id": "3",
-        "name": "Dan Abramov",
-        "number": "12-43-234345"
-    },
-    {
-        "id": "4",
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122"
-    }
-]
+      return response.json(foundPerson);
+    })
+    .catch((error) => next(error));
+});
 
-const generateId = () => {
-    const maxId = phonebook.length > 0 ? Math.max(...phonebook.map(person => Number(person.id))) : 1
+app.delete("/api/persons/:id", (request, response, next) => {
+  PhoneNumber.findByIdAndDelete(request.params.id)
+    .then((result) => {
+      if (result) {
+        response.status(204).end();
+      } else {
+        response
+          .status(404)
+          .json({ error: "The id for that person does not exist" });
+      }
+    })
+    .catch((error) => next(error));
+});
 
-    return maxId + 1
-}
+app.post("/api/persons", (request, response, next) => {
+  const body = request.body;
+  console.log("body: ", body);
 
-app.get('/api/persons', (request, response) => {
-    response.json(phonebook)
-})
+  if (!body.name || !body.number) {
+    return response.status(400).json({
+      error: "Invalid request body",
+    });
+  }
 
-app.get('/api/persons/:id', (request, response) => {
-    const id = request.params.id
-    const foundEntry = phonebook.find(person => person.id === id)
+  const newPerson = new PhoneNumber({
+    name: body.name,
+    number: body.number,
+  });
 
-    if (foundEntry) {
-        response.status(200).json(foundEntry)
-    } else {
-        response.status(404).end()
-    }
-})
+  newPerson
+    .save()
+    .then((savedPerson) => {
+      response.status(201).json(savedPerson);
+    })
+    .catch((error) => next(error));
+});
 
-app.delete('/api/persons/:id', (request, response) => {
-    const id = request.params.id
+app.put("/api/persons/:id", (request, response, next) => {
+  const { name, number } = request.body;
+  PhoneNumber.findById(request.params.id)
+    .then((person) => {
+      if (!person) {
+        return response.status(404).json({ error: "person not found" });
+      }
 
-    phonebook = phonebook.filter(person => person.id !== id)
-    response.status(204).end()
-})
+      person.name = name;
+      person.number = number;
 
-app.post('/api/persons', (request, response) => {
-    const body = request.body
-    console.log('body: ', body)
+      person.save().then((updatedPerson) => {
+        response.json(updatedPerson);
+      });
+    })
+    .catch((error) => next(error));
+});
 
-    const findDuplicate = phonebook.find(person => person.name === body.name)
+app.get("/info", (request, response) => {
+  PhoneNumber.find({})
+    .then((persons) => {
+      response.send(
+        `<div><p>The phonebook has info for ${
+          persons.length
+        } people</p><p>${new Date()}</p></div>`
+      );
+    })
+    .catch((error) => next(error));
+});
 
-    if (!body.name || !body.number) {
-        return response.status(400).json({
-            error: "Invalid request body"
-        })
-    }
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
 
-    if (findDuplicate) {
-        return response.status(400).json({
-            error: "That person was already created"
-        })
-    }
+  if (error.name === "CastError") {
+    return response.status(400).json({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
+  }
 
-    const newPerson = {
-        ...body,
-        id: generateId()
-    }
+  next(error);
+};
 
-    console.log("phonebook length before add:", phonebook.length)
-    phonebook = [...phonebook, newPerson]
-    console.log("phonebook length after add:", phonebook.length)
-    response.status(201).json(newPerson)
-})
+app.use(errorHandler);
 
-app.get('/info', (request, response) => {
-    response.send(`<div><p>The phonebook has info for ${phonebook.length} people</p><p>${new Date()}</p></div>`)
-})
-
-const PORT = process.env.PORT || 3000
-app.listen(PORT)
-console.log(`Listening on port ${3000}`)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT);
+console.log(`Listening on port ${3000}`);

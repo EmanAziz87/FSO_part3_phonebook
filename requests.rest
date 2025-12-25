@@ -1,10 +1,22 @@
-### get all persons
+### get all persons Prod
+GET https://fso-part3-phonebook-za2s.onrender.com/api/persons
+
+### get all persons dev
 GET http://localhost:3000/api/persons
 
 ### get person
-GET http://localhost:3000/api/persons/45
+GET http://localhost:3000/api/persons/694205d683fbf3e57bb89d43
 
-### create person
+### create person prod
+POST https://fso-part3-phonebook-za2s.onrender.com/api/persons
+Content-Type: application/json
+
+{
+  "name": "Test person",
+  "number": "1234"
+}
+
+### create person dev
 POST http://localhost:3000/api/persons
 Content-Type: application/json
 
@@ -14,4 +26,16 @@ Content-Type: application/json
 }
 
 ### delete person
-DELETE http://localhost:3000/api/persons/4
+DELETE http://localhost:3000/api/persons/6942056a38e158385e07f10f
+
+### update person dev
+PUT http://localhost:3000/api/persons/694205d683fbf3e57bb89d43
+Content-Type: application/json
+
+{
+  "name": "george",
+  "number": "666"
+}
+
+### database info dev
+GET http://localhost:3000/info
